@@ -1,0 +1,132 @@
+---
+- name: Deploy web application
+  hosts: webserver
+  become: yes
+  vars_files:
+    - group_vars/all.yml
+
+  roles:
+    - common
+    - node
+    - python
+    - optimization
+    - nginx
+    - certbot
+
+  tasks:
+    - name: Create backend user
+      user:
+        name: "{{ backend_user }}"
+        system: yes
+        create_home: yes
+        shell: /bin/false
+
+    - name: Create backend directory
+      file:
+        path: "{{ backend_dir }}"
+        state: directory
+        owner: "{{ backend_user }}"
+        group: "{{ backend_user }}"
+        mode: '0755'
+
+    - name: Create frontend directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+      with_items:
+        - "{{ frontend_dir }}"
+        - "{{ app_root }}/frontend-source"
+
+    - name: Copy backend files
+      copy:
+        src: ../backend/
+        dest: "{{ backend_dir }}/"
+        owner: "{{ backend_user }}"
+        group: "{{ backend_user }}"
+        mode: '0755'
+
+    - name: Copy frontend source files
+      synchronize:
+        src: ../frontend/
+        dest: "{{ app_root }}/frontend-source/"
+        rsync_opts:
+          - "--exclude=node_modules"
+          - "--exclude=dist"
+        owner: no
+        group: no
+
+    - name: Set frontend source permissions
+      file:
+        path: "{{ app_root }}/frontend-source"
+        mode: '0755'
+        recurse: yes
+
+    - name: Install backend requirements
+      pip:
+        requirements: "{{ backend_dir }}/requirements.txt"
+        virtualenv: "{{ backend_dir }}/venv"
+        virtualenv_python: "python{{ python_version }}"
+
+    - name: Clean npm cache
+      command:
+        cmd: npm cache clean --force
+        chdir: "{{ app_root }}/frontend-source"
+
+    - name: Remove existing node_modules
+      file:
+        path: "{{ app_root }}/frontend-source/node_modules"
+        state: absent
+
+    - name: Install frontend dependencies
+      npm:
+        path: "{{ app_root }}/frontend-source"
+        state: present
+        ci: yes
+
+    - name: Install postcss explicitly
+      npm:
+        name: postcss
+        path: "{{ app_root }}/frontend-source"
+        state: present
+
+    - name: Build frontend
+      command:
+        cmd: npm run build
+        chdir: "{{ app_root }}/frontend-source"
+
+    - name: Ensure frontend dist directory exists
+      file:
+        path: "{{ frontend_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Copy frontend dist files
+      copy:
+        src: "{{ app_root }}/frontend-source/dist/"
+        dest: "{{ frontend_dir }}"
+        remote_src: yes
+        mode: '0755'
+
+    - name: Setup backend service
+      template:
+        src: roles/python/templates/backend.service.j2
+        dest: /etc/systemd/system/{{ domain_name }}-backend.service
+        mode: '0644'
+      notify: reload systemd
+
+    - name: Ensure backend service is running
+      systemd:
+        name: "{{ domain_name }}-backend"
+        state: started
+        enabled: yes
+
+    - name: Ensure nginx is running
+      service:
+        name: nginx
+        state: started
+
+  handlers:
+    - name: reload systemd
+      systemd:
+        daemon_reload: yes

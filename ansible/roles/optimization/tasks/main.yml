@@ -1,0 +1,17 @@
+---
+- name: Install tools for optimization
+  apt:
+    name:
+      - brotli
+    state: present
+
+- name: Create Brotli compressed versions of static files
+  shell: |
+    find {{ app_root }} -type f -regex ".*\.(js|css|html|svg)$" -exec brotli -f {} \;
+
+- name: Set correct permissions
+  file:
+    path: "{{ app_root }}"
+    owner: www-data
+    group: www-data
+    recurse: yes

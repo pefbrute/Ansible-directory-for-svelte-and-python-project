@@ -1,0 +1,24 @@
+---
+- name: Install nginx
+  apt:
+    name: nginx
+    state: present
+
+- name: Remove default nginx site
+  file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+
+- name: Copy nginx site configuration
+  template:
+    src: derzko69.ru.conf.j2
+    dest: /etc/nginx/sites-available/{{ domain_name }}
+    mode: '0644'
+  notify: reload nginx
+
+- name: Enable nginx site
+  file:
+    src: /etc/nginx/sites-available/{{ domain_name }}
+    dest: /etc/nginx/sites-enabled/{{ domain_name }}
+    state: link
+  notify: reload nginx

@@ -1,0 +1,7 @@
+all:
+  hosts:
+    webserver:
+      ansible_host: 222.22.22.222 #ip
+      ansible_user: root
+      ansible_password: "bfsyghdfa" #password
+      ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
