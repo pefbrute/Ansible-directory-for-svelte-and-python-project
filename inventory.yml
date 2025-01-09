@@ -1,7 +1,0 @@
-all:
-  hosts:
-    webserver:
-      ansible_host: ip
-      ansible_user: root
-      ansible_password: "password"
-      ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
