@@ -1,0 +1,9 @@
+---
+domain_name: "derzko69.ru"
+app_root: "/var/www/{{ domain_name }}"
+python_version: "3.10"
+frontend_dir: "{{ app_root }}/frontend"
+backend_dir: "/opt/{{ domain_name }}/backend"
+backend_user: "webapi"
+backend_port: 5000
+node_version: "20.x"
